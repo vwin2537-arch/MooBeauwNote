@@ -92,8 +92,8 @@ function getOrCreateSpreadsheet() {
   }
 }
 
-function getOrCreateSheet(sheetName) {
-  const ss = getOrCreateSpreadsheet();
+function getOrCreateSheet(sheetName, providedSS = null) {
+  const ss = providedSS || getOrCreateSpreadsheet();
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) sheet = ss.insertSheet(sheetName);
   return sheet;
@@ -231,25 +231,26 @@ function getFromSheet() {
 // ==================== READ FROM STRUCTURED SHEETS ====================
 
 function getFromStructuredSheets() {
+  const ss = getOrCreateSpreadsheet(); // ⭐ Open once!
   const data = {};
   
   // 1. Transactions
-  data.transactions = getTransactionsFromSheet();
+  data.transactions = getTransactionsFromSheet(ss);
   
   // 2. Categories
-  data.categories = getCategoriesFromSheet();
+  data.categories = getCategoriesFromSheet(ss);
   
   // 3. Budget
-  data.budget = getBudgetFromSheet();
+  data.budget = getBudgetFromSheet(ss);
   
   // 4. Settings
-  data.settings = getSettingsFromSheet();
+  data.settings = getSettingsFromSheet(ss);
   
   return data;
 }
 
-function getTransactionsFromSheet() {
-  const sheet = getOrCreateSheet(TX_SHEET_NAME);
+function getTransactionsFromSheet(ss) {
+  const sheet = getOrCreateSheet(TX_SHEET_NAME, ss);
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
   
@@ -298,8 +299,8 @@ function getTransactionsFromSheet() {
   }).filter(t => t.id); // Filter out empty rows
 }
 
-function getCategoriesFromSheet() {
-  const sheet = getOrCreateSheet(CAT_SHEET_NAME);
+function getCategoriesFromSheet(ss) {
+  const sheet = getOrCreateSheet(CAT_SHEET_NAME, ss);
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return { expense: [], income: [] };
   
@@ -320,8 +321,8 @@ function getCategoriesFromSheet() {
   return categories;
 }
 
-function getBudgetFromSheet() {
-  const sheet = getOrCreateSheet(BUDGET_SHEET_NAME);
+function getBudgetFromSheet(ss) {
+  const sheet = getOrCreateSheet(BUDGET_SHEET_NAME, ss);
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return {};
   
@@ -332,8 +333,8 @@ function getBudgetFromSheet() {
   };
 }
 
-function getSettingsFromSheet() {
-  const sheet = getOrCreateSheet(SETTINGS_SHEET_NAME);
+function getSettingsFromSheet(ss) {
+  const sheet = getOrCreateSheet(SETTINGS_SHEET_NAME, ss);
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return {};
   
