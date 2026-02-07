@@ -209,6 +209,22 @@ const App = {
             txForm.addEventListener('submit', (e) => this.handleTransactionSubmit(e));
         }
 
+        // --- Icon Picker (Categories) ---
+        const openIconPickerBtn = document.getElementById('openIconPickerBtn');
+        if (openIconPickerBtn) {
+            openIconPickerBtn.addEventListener('click', () => {
+                this.renderIconPicker();
+                Utils.showModal('iconPickerModal');
+            });
+        }
+
+        const closeIconPickerBtn = document.getElementById('closeIconPickerModal');
+        if (closeIconPickerBtn) {
+            closeIconPickerBtn.addEventListener('click', () => {
+                Utils.hideModal('iconPickerModal');
+            });
+        }
+
         // Transaction Type Toggle (Income/Expense)
         const typeBtns = document.querySelectorAll('.type-btn');
         typeBtns.forEach(btn => {
@@ -1424,6 +1440,39 @@ const App = {
                     y: { beginAtZero: true }
                 }
             }
+        });
+    },
+
+    /**
+     * Render Icon Picker Grid
+     */
+    renderIconPicker() {
+        const grid = document.getElementById('iconGrid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        const icons = [
+            '💰', '💸', '🏦', '💳', '🧾', '🛒', '🛍️',
+            '🍔', '🍜', '🍱', '🥤', '☕', '🍰', '🍻',
+            '🚗', '🚕', '🚌', '🚆', '✈️', '⛽', '🔧',
+            '🏠', '💡', '💧', '📱', '💻', '📺', '🛏️',
+            '👕', '👔', '👗', '🧢', '👞', '💄', '💇',
+            '💊', '🏥', '🏋️', '🧘', '⚽', '🎮', '🎬',
+            '📚', '🎓', '🎁', '🧧', '🐶', '🐱', '👶'
+        ];
+
+        icons.forEach(icon => {
+            const btn = document.createElement('button');
+            btn.className = 'icon-option';
+            btn.textContent = icon;
+            btn.addEventListener('click', () => {
+                // Return selected icon
+                const display = document.getElementById('selectedIcon');
+                if (display) display.textContent = icon;
+                Utils.hideModal('iconPickerModal');
+            });
+            grid.appendChild(btn);
         });
     },
 
