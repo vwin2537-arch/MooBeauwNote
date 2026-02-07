@@ -59,6 +59,17 @@ const Utils = {
     },
 
     /**
+     * แปลงวันที่เป็นเวลา (HH:mm)
+     * @param {string|Date} date - วันที่
+     * @returns {string} เวลาในรูปแบบ HH:mm
+     */
+    formatTime(date) {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    },
+
+    /**
      * แปลงวันที่เป็นรูปแบบ ISO (YYYY-MM-DD)
      * @param {Date} date - วันที่
      * @returns {string} วันที่ในรูปแบบ ISO

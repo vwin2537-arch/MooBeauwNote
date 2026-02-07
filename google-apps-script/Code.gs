@@ -47,7 +47,7 @@ function doGet(e) {
     const callback = e.parameter.callback;
 
     if (action === 'pull') {
-      const data = getFromSheet();
+      const data = getFromStructuredSheets(); // ⭐ Pull from structured sheets instead of raw
       if (!callback) {
          return ContentService.createTextOutput(JSON.stringify(data))
           .setMimeType(ContentService.MimeType.JSON);
@@ -226,6 +226,133 @@ function getFromSheet() {
   values.forEach(row => { if (row[0]) jsonString += row[0]; });
   if (!jsonString) return {};
   try { return JSON.parse(jsonString); } catch (e) { return { error: 'Data corrupted' }; }
+}
+
+// ==================== READ FROM STRUCTURED SHEETS ====================
+
+function getFromStructuredSheets() {
+  const data = {};
+  
+  // 1. Transactions
+  data.transactions = getTransactionsFromSheet();
+  
+  // 2. Categories
+  data.categories = getCategoriesFromSheet();
+  
+  // 3. Budget
+  data.budget = getBudgetFromSheet();
+  
+  // 4. Settings
+  data.settings = getSettingsFromSheet();
+  
+  return data;
+}
+
+function getTransactionsFromSheet() {
+  const sheet = getOrCreateSheet(TX_SHEET_NAME);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  
+  const values = sheet.getRange(2, 1, lastRow - 1, 8).getValues(); // A-H columns
+  
+  return values.map(row => {
+    // row[0] = Date object from sheet
+    // row[1] = Time string (HH:mm:ss) OR Date object
+    let dateTime = row[0];
+    if (row[0] instanceof Date) {
+       let hours = 0, minutes = 0, seconds = 0;
+       
+       if (row[1] instanceof Date) {
+         // Case 1: Time is a Date object (Google Sheets default for Time format)
+         hours = row[1].getHours();
+         minutes = row[1].getMinutes();
+         seconds = row[1].getSeconds();
+       } else if (typeof row[1] === 'string' && row[1].includes(':')) {
+         // Case 2: Time is a string "HH:mm:ss"
+         const timeParts = row[1].split(':');
+         if (timeParts.length >= 2) {
+           hours = parseInt(timeParts[0]);
+           minutes = parseInt(timeParts[1]);
+           seconds = parseInt(timeParts[2] || 0);
+         }
+       }
+       
+       // Set time to the date object
+       if (hours || minutes || seconds) {
+          dateTime.setHours(hours, minutes, seconds);
+       }
+    } else if (typeof row[0] === 'string') {
+       dateTime = row[0]; // Fallback for string dates
+    }
+
+    return {
+      date: convertDateToISO(row[0]), // Keep date as YYYY-MM-DD
+      createdAt: dateTime, // Full timestamp
+      type: row[2],
+      category: row[3],
+      description: row[4],
+      amount: parseFloat(row[5]),
+      note: row[6],
+      id: row[7]
+    };
+  }).filter(t => t.id); // Filter out empty rows
+}
+
+function getCategoriesFromSheet() {
+  const sheet = getOrCreateSheet(CAT_SHEET_NAME);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { expense: [], income: [] };
+  
+  const values = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  const categories = { expense: [], income: [] };
+  
+  values.forEach(row => {
+    const type = row[0]; // income/expense
+    const cat = {
+      name: row[1],
+      icon: row[2],
+      id: row[3]
+    };
+    if (type === 'income') categories.income.push(cat);
+    else if (type === 'expense') categories.expense.push(cat);
+  });
+  
+  return categories;
+}
+
+function getBudgetFromSheet() {
+  const sheet = getOrCreateSheet(BUDGET_SHEET_NAME);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+  
+  const values = sheet.getRange(2, 1, 1, 2).getValues();
+  return {
+    monthlyBudget: values[0][0],
+    alertThreshold: values[0][1]
+  };
+}
+
+function getSettingsFromSheet() {
+  const sheet = getOrCreateSheet(SETTINGS_SHEET_NAME);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+  
+  const values = sheet.getRange(2, 1, 1, 3).getValues();
+  return {
+    darkMode: values[0][0] === 'ON',
+    notifications: values[0][1] === 'ON',
+    gasUrl: values[0][2] === '-' ? '' : values[0][2]
+  };
+}
+
+function convertDateToISO(dateObj) {
+  if (dateObj instanceof Date) {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return dateObj; // Return as is if string
 }
 
 // ==================== SUPERVISOR AGENT ====================
