@@ -65,15 +65,19 @@ const App = {
         this.navigateTo('dashboard');
 
         // 6. ⭐ Auto-Pull from Google Sheets on Load (ดึงข้อมูลจาก Cloud เป็นหลัก)
-        if (typeof Sync !== 'undefined' && Sync.canSync()) {
-            console.log('Auto-pulling data from Google Sheets...');
-            Utils.showLoading(true, 'กำลังโหลดข้อมูลจาก Cloud...');
-            try {
-                await Sync.pullFromCloud();
-            } catch (e) {
-                console.error('Auto-pull failed, using local data:', e);
+        // ทำเป็น background task ไม่ block UI
+        if (typeof Sync !== 'undefined' && typeof Storage !== 'undefined') {
+            const gasUrl = Storage.getGasUrl();
+            if (gasUrl && navigator.onLine) {
+                console.log('Auto-pulling data from Google Sheets...');
+                // Don't show loading overlay - just pull silently in background
+                Sync.pullFromCloud().then(() => {
+                    console.log('Auto-pull completed');
+                    this.refresh(); // Refresh UI after pull
+                }).catch(e => {
+                    console.warn('Auto-pull failed, using local data:', e.message);
+                });
             }
-            Utils.showLoading(false);
         }
 
         // 7. โหลดข้อมูล Async (Refresh UI)
