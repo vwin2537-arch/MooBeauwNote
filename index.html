@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#FFF9F0">
+    <meta name="description" content="บันทึกของหมูบิว - แอพบันทึกรายรับรายจ่ายส่วนตัว">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="บันทึกของหมูบิว">
+
+    <title>บันทึกของหมูบิว</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="images/icon-192.png">
+
+    <!-- Google Fonts - Mali -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@300;400;500;600;700&family=Viga&display=swap"
+        rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Flatpickr (Date Picker) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+    <div id="app" class="app-container">
+
+        <!-- ==================== HEADER ==================== -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="app-title">บันทึกของหมูบิว</h1>
+                <div class="sync-status" id="syncStatus" title="สถานะ Sync">
+                    <span class="sync-icon">&#10003;</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ==================== MAIN CONTENT ==================== -->
+        <main class="main-content">
+
+            <!-- ========== PAGE: DASHBOARD ========== -->
+            <section id="page-dashboard" class="page active">
+                <!-- Month Picker -->
+                <div class="month-picker-container" role="group" aria-label="เลือกเดือน">
+                    <button class="month-nav-btn" id="prevMonth" aria-label="เดือนก่อนหน้า">&lt;</button>
+                    <button class="month-picker-btn" id="monthPicker" aria-live="polite">
+                        <span id="currentMonthDisplay">มกราคม 2026</span>
+                        <span class="dropdown-arrow" aria-hidden="true">&#9662;</span>
+                    </button>
+                    <button class="month-nav-btn" id="nextMonth" aria-label="เดือนถัดไป">&gt;</button>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="summary-cards" role="region" aria-label="สรุปรายรับรายจ่าย">
+                    <div class="summary-card income">
+                        <div class="card-icon" aria-hidden="true">&#128176;</div>
+                        <div class="card-content">
+                            <span class="card-label" id="incomeLabel">รายรับ</span>
+                            <span class="card-amount" id="totalIncome" aria-live="polite"
+                                aria-labelledby="incomeLabel">0 &#3647;</span>
+                        </div>
+                    </div>
+                    <div class="summary-card expense">
+                        <div class="card-icon" aria-hidden="true">&#128184;</div>
+                        <div class="card-content">
+                            <span class="card-label" id="expenseLabel">รายจ่าย</span>
+                            <span class="card-amount" id="totalExpense" aria-live="polite"
+                                aria-labelledby="expenseLabel">0 &#3647;</span>
+                        </div>
+                    </div>
+                    <div class="summary-card balance">
+                        <div class="card-icon" aria-hidden="true">&#128181;</div>
+                        <div class="card-content">
+                            <span class="card-label" id="balanceLabel">คงเหลือ</span>
+                            <span class="card-amount" id="totalBalance" aria-live="polite"
+                                aria-labelledby="balanceLabel">0 &#3647;</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget Progress -->
+                <div class="budget-section">
+                    <div class="budget-header">
+                        <span class="budget-title">&#128202; งบประมาณเดือนนี้</span>
+                        <span class="budget-edit" id="editBudget">แก้ไข</span>
+                    </div>
+                    <div class="budget-progress-container">
+                        <div class="budget-progress-bar">
+                            <div class="budget-progress-fill" id="budgetProgressFill" style="width: 0%"></div>
+                        </div>
+                        <div class="budget-info">
+                            <span id="budgetUsed">ใช้ไป 0 &#3647;</span>
+                            <span id="budgetTotal">/ 0 &#3647;</span>
+                            <span class="budget-percent" id="budgetPercent">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Chart -->
+                <div class="chart-section">
+                    <h3 class="section-title">&#128200; สัดส่วนรายจ่าย</h3>
+                    <div class="chart-container">
+                        <canvas id="expensePieChart"></canvas>
+                    </div>
+                    <div id="noDataMessage" class="no-data-message" style="display: none;">
+                        ยังไม่มีข้อมูลรายจ่ายในเดือนนี้
+                    </div>
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="recent-section">
+                    <div class="section-header">
+                        <h3 class="section-title">&#128221; รายการล่าสุด</h3>
+                        <button class="see-all-btn" data-page="transactions">ดูทั้งหมด &gt;</button>
+                    </div>
+                    <div class="transaction-list" id="recentTransactions">
+                        <!-- Transactions will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Quick Add Button -->
+                <button class="fab-button" id="quickAddBtn" title="เพิ่มรายการ" aria-label="เพิ่มรายการใหม่">
+                    <span aria-hidden="true">🐷</span>
+                </button>
+            </section>
+
+            <!-- ========== PAGE: ADD/EDIT TRANSACTION ========== -->
+            <section id="page-add" class="page" aria-labelledby="addPageTitle">
+                <div class="page-header">
+                    <button class="back-btn" data-page="dashboard" aria-label="กลับไปหน้าหลัก">&lt;</button>
+                    <h2 class="page-title" id="addPageTitle">บันทึกรายการใหม่</h2>
+                    <div class="header-spacer"></div>
+                </div>
+
+                <form id="transactionForm" class="transaction-form">
+                    <input type="hidden" id="editTransactionId" value="">
+
+                    <!-- Transaction Type -->
+                    <div class="form-group">
+                        <label class="form-label">ประเภท</label>
+                        <div class="type-toggle">
+                            <button type="button" class="type-btn expense active" data-type="expense">
+                                &#128184; รายจ่าย
+                            </button>
+                            <button type="button" class="type-btn income" data-type="income">
+                                &#128176; รายรับ
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="form-group">
+                        <label class="form-label" for="txDate">วันที่</label>
+                        <input type="text" id="txDate" class="form-input date-input" placeholder="เลือกวันที่" required>
+                    </div>
+
+                    <!-- Amount -->
+                    <div class="form-group">
+                        <label class="form-label" for="txAmount">จำนวนเงิน (บาท)</label>
+                        <input type="number" id="txAmount" class="form-input amount-input" placeholder="0.00" min="0"
+                            step="0.01" required inputmode="decimal">
+                    </div>
+
+                    <!-- Category -->
+                    <div class="form-group">
+                        <label class="form-label" for="txCategory">หมวดหมู่</label>
+                        <select id="txCategory" class="form-input category-select" required>
+                            <option value="">เลือกหมวดหมู่...</option>
+                        </select>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label class="form-label" for="txDescription">รายละเอียด (ถ้ามี)</label>
+                        <input type="text" id="txDescription" class="form-input"
+                            placeholder="เช่น ข้าวเที่ยง, ค่ารถ BTS">
+                    </div>
+
+                    <!-- Receipt Upload -->
+                    <div class="form-group">
+                        <label class="form-label">แนบใบเสร็จ (ถ้ามี)</label>
+                        <div class="receipt-upload">
+                            <input type="file" id="txReceipt" accept="image/*" capture="environment" hidden>
+                            <button type="button" class="upload-btn" id="uploadReceiptBtn">
+                                &#128247; เลือกรูป / ถ่ายภาพ
+                            </button>
+                            <div class="receipt-preview" id="receiptPreview" style="display: none;">
+                                <img id="receiptImage" src="" alt="ใบเสร็จ">
+                                <button type="button" class="remove-receipt-btn" id="removeReceiptBtn">&times;</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="form-group">
+                        <label class="form-label" for="txTags">แท็ก (ถ้ามี)</label>
+                        <input type="text" id="txTags" class="form-input"
+                            placeholder="เช่น #จำเป็น #ฉุกเฉิน (คั่นด้วยช่องว่าง)">
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        &#128190; บันทึก
+                    </button>
+
+                    <!-- Delete Button (for edit mode) -->
+                    <button type="button" class="delete-btn" id="deleteBtn" style="display: none;">
+                        &#128465; ลบรายการนี้
+                    </button>
+                </form>
+            </section>
+
+            <!-- ========== PAGE: TRANSACTIONS LIST ========== -->
+            <section id="page-transactions" class="page" aria-labelledby="transactionsPageTitle">
+                <div class="page-header">
+                    <button class="back-btn" data-page="dashboard" aria-label="กลับไปหน้าหลัก">&lt;</button>
+                    <h2 class="page-title" id="transactionsPageTitle">รายการทั้งหมด</h2>
+                    <div class="header-spacer"></div>
+                </div>
+
+                <!-- Filters -->
+                <div class="filters-container">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>ช่วงวันที่</label>
+                            <input type="text" id="filterDateRange" class="filter-input" placeholder="เลือกช่วงวัน">
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>ประเภท</label>
+                            <select id="filterType" class="filter-input">
+                                <option value="all">ทั้งหมด</option>
+                                <option value="income">รายรับ</option>
+                                <option value="expense">รายจ่าย</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>หมวดหมู่</label>
+                            <select id="filterCategory" class="filter-input">
+                                <option value="all">ทั้งหมด</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filter-summary" id="filterSummary">
+                        <span>รายรับ: <strong id="filteredIncome">0 &#3647;</strong></span>
+                        <span>รายจ่าย: <strong id="filteredExpense">0 &#3647;</strong></span>
+                    </div>
+                </div>
+
+                <!-- Transaction List -->
+                <div class="transaction-list full-list" id="allTransactions">
+                    <!-- Transactions will be rendered here -->
+                </div>
+
+                <div class="empty-state" id="emptyTransactions" style="display: none;">
+                    <div class="empty-icon">&#128221;</div>
+                    <p>ยังไม่มีรายการในช่วงเวลานี้</p>
+                </div>
+            </section>
+
+            <!-- ========== PAGE: REPORTS ========== -->
+            <section id="page-reports" class="page" aria-labelledby="reportsPageTitle">
+                <div class="page-header">
+                    <button class="back-btn" data-page="dashboard" aria-label="กลับไปหน้าหลัก">&lt;</button>
+                    <h2 class="page-title" id="reportsPageTitle">&#128202; รายงานและกราฟ</h2>
+                    <div class="header-spacer"></div>
+                </div>
+
+                <!-- Report Period Selector -->
+                <div class="report-period-selector" role="tablist" aria-label="เลือกช่วงเวลารายงาน">
+                    <button class="period-btn active" data-period="month" role="tab"
+                        aria-selected="true">รายเดือน</button>
+                    <button class="period-btn" data-period="year" role="tab" aria-selected="false">รายปี</button>
+                </div>
+
+                <div class="month-picker-container" role="group" aria-label="เลือกช่วงเวลา">
+                    <button class="month-nav-btn" id="reportPrevMonth" aria-label="ช่วงก่อนหน้า">&lt;</button>
+                    <button class="month-picker-btn" id="reportMonthPicker" aria-live="polite">
+                        <span id="reportMonthDisplay">มกราคม 2026</span>
+                    </button>
+                    <button class="month-nav-btn" id="reportNextMonth" aria-label="ช่วงถัดไป">&gt;</button>
+                </div>
+
+                <!-- Income vs Expense Chart -->
+                <div class="chart-section">
+                    <h3 class="section-title">รายรับ vs รายจ่าย</h3>
+                    <div class="chart-container bar-chart">
+                        <canvas id="incomeExpenseChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Category Breakdown -->
+                <div class="chart-section">
+                    <h3 class="section-title">สัดส่วนรายจ่ายตามหมวดหมู่</h3>
+                    <div class="chart-container">
+                        <canvas id="categoryPieChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Daily Trend -->
+                <div class="chart-section">
+                    <h3 class="section-title">แนวโน้มรายวัน</h3>
+                    <div class="chart-container line-chart">
+                        <canvas id="dailyTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Top Expenses -->
+                <div class="top-expenses-section">
+                    <h3 class="section-title">&#127942; Top 10 รายจ่าย</h3>
+                    <div class="top-expenses-list" id="topExpensesList">
+                        <!-- Top expenses will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Export Button -->
+                <div class="export-section">
+                    <button class="export-btn" id="exportCsvBtn">
+                        &#128229; Export CSV
+                    </button>
+                </div>
+            </section>
+
+            <!-- ========== PAGE: SETTINGS ========== -->
+            <section id="page-settings" class="page" aria-labelledby="settingsPageTitle">
+                <div class="page-header">
+                    <button class="back-btn" data-page="dashboard" aria-label="กลับไปหน้าหลัก">&lt;</button>
+                    <h2 class="page-title" id="settingsPageTitle">&#9881;&#65039; ตั้งค่า</h2>
+                    <div class="header-spacer"></div>
+                </div>
+
+                <!-- Budget Setting -->
+                <div class="settings-section">
+                    <h3 class="settings-title">&#128176; งบประมาณรายเดือน</h3>
+                    <div class="settings-item">
+                        <label for="monthlyBudget">วงเงินงบประมาณ</label>
+                        <div class="budget-input-group">
+                            <input type="number" id="monthlyBudget" class="form-input" placeholder="20000" min="0"
+                                step="100">
+                            <span class="currency-label">&#3647;</span>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <label for="budgetAlert">แจ้งเตือนเมื่อใช้ถึง</label>
+                        <div class="budget-input-group">
+                            <input type="number" id="budgetAlert" class="form-input" value="80" min="50" max="100"
+                                step="5">
+                            <span class="currency-label">%</span>
+                        </div>
+                    </div>
+                    <button class="save-settings-btn" id="saveBudgetSettings">บันทึกงบประมาณ</button>
+                </div>
+
+                <!-- Categories Management -->
+                <div class="settings-section">
+                    <h3 class="settings-title">&#127991;&#65039; จัดการหมวดหมู่</h3>
+                    <button class="settings-link-btn" id="manageCategoriesBtn">
+                        แก้ไขหมวดหมู่ &gt;
+                    </button>
+                </div>
+
+                <!-- Theme -->
+                <div class="settings-section">
+                    <h3 class="settings-title">&#127912; ธีม</h3>
+                    <div class="settings-item toggle-item">
+                        <label for="darkModeToggle">โหมดมืด (Dark Mode)</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="darkModeToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Sync -->
+                <div class="settings-section">
+                    <h3 class="settings-title">&#128259; Sync กับ Google Sheets</h3>
+                    <div class="sync-info">
+                        <span id="lastSyncTime">ยังไม่เคย Sync</span>
+                    </div>
+                    <div class="sync-buttons">
+                        <button class="sync-btn" id="syncNowBtn">&#128259; Sync ทันที</button>
+                        <button class="sync-btn secondary" id="pullFromCloudBtn">&#128229; โหลดจาก Cloud</button>
+                    </div>
+                    <div class="settings-item">
+                        <label for="gasUrl">Google Apps Script URL</label>
+                        <input type="url" id="gasUrl" class="form-input" placeholder="วาง URL ของ Web App ที่นี่">
+                    </div>
+                    <button class="save-settings-btn" id="saveGasUrl">บันทึก URL</button>
+                </div>
+
+                <!-- Data Management -->
+                <div class="settings-section danger-zone">
+                    <h3 class="settings-title">&#9888;&#65039; จัดการข้อมูล</h3>
+                    <button class="danger-btn" id="clearCacheBtn">ล้าง Cache</button>
+                    <button class="danger-btn" id="clearAllDataBtn">ล้างข้อมูลทั้งหมด</button>
+                </div>
+
+                <!-- About -->
+                <div class="settings-section about-section">
+                    <h3 class="settings-title">&#128221; เกี่ยวกับแอพ</h3>
+                    <div class="about-info">
+                        <p><strong>บันทึกของหมูบิว</strong></p>
+                        <p>Version 1.0.0</p>
+                        <p class="about-tagline">สร้างวินัยทางการเงิน ทีละก้าว &#128055;</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== PAGE: CATEGORIES MANAGEMENT ========== -->
+            <section id="page-categories" class="page" aria-labelledby="categoriesPageTitle">
+                <div class="page-header">
+                    <button class="back-btn" data-page="settings" aria-label="กลับไปหน้าตั้งค่า">&lt;</button>
+                    <h2 class="page-title" id="categoriesPageTitle">จัดการหมวดหมู่</h2>
+                    <div class="header-spacer"></div>
+                </div>
+
+                <!-- Category Type Tabs -->
+                <div class="category-tabs" role="tablist" aria-label="เลือกประเภทหมวดหมู่">
+                    <button class="category-tab active" data-cat-type="expense" role="tab"
+                        aria-selected="true">รายจ่าย</button>
+                    <button class="category-tab" data-cat-type="income" role="tab" aria-selected="false">รายรับ</button>
+                </div>
+
+                <!-- Add Category Form -->
+                <div class="add-category-form">
+                    <input type="text" id="newCategoryName" class="form-input" placeholder="ชื่อหมวดหมู่ใหม่">
+                    <button class="icon-select-btn" id="openIconPickerBtn" title="เลือกไอคอน">
+                        <span id="selectedIcon" aria-hidden="true">💰</span>
+                    </button>
+                    <button class="add-category-btn" id="addCategoryBtn">+ เพิ่ม</button>
+                </div>
+
+                <!-- Category List -->
+                <div class="category-list" id="categoryList">
+                    <!-- Categories will be rendered here -->
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ==================== BOTTOM NAVIGATION ==================== -->
+        <nav class="bottom-nav" role="navigation" aria-label="เมนูหลัก">
+            <button class="nav-item active" data-page="dashboard" aria-current="page">
+                <span class="nav-icon" aria-hidden="true">&#127968;</span>
+                <span class="nav-label">หน้าหลัก</span>
+            </button>
+            <button class="nav-item" data-page="transactions">
+                <span class="nav-icon" aria-hidden="true">&#128221;</span>
+                <span class="nav-label">รายการ</span>
+            </button>
+            <button class="nav-item add-btn" data-page="add" aria-label="เพิ่มรายการใหม่">
+                <span class="nav-icon" aria-hidden="true">🐷</span>
+            </button>
+            <button class="nav-item" data-page="reports">
+                <span class="nav-icon" aria-hidden="true">&#128202;</span>
+                <span class="nav-label">รายงาน</span>
+            </button>
+            <button class="nav-item" data-page="settings">
+                <span class="nav-icon" aria-hidden="true">&#9881;&#65039;</span>
+                <span class="nav-label">ตั้งค่า</span>
+            </button>
+        </nav>
+
+        <!-- ==================== MODALS ==================== -->
+        <!-- Budget Edit Modal -->
+        <div class="modal" id="budgetModal" role="dialog" aria-modal="true" aria-labelledby="budgetModalTitle"
+            aria-hidden="true">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <h3 class="modal-title" id="budgetModalTitle">&#128176; ตั้งงบประมาณ</h3>
+                <div class="form-group">
+                    <label for="modalBudgetAmount">งบประมาณเดือนนี้</label>
+                    <input type="number" id="modalBudgetAmount" class="form-input" placeholder="20000" min="0">
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn secondary" id="cancelBudgetModal">ยกเลิก</button>
+                    <button class="modal-btn primary" id="saveBudgetModal">บันทึก</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Delete Modal -->
+        <div class="modal" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle"
+            aria-hidden="true">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <h3 class="modal-title" id="deleteModalTitle">&#9888;&#65039; ยืนยันการลบ</h3>
+                <p class="modal-message" id="deleteModalMessage">คุณต้องการลบรายการนี้หรือไม่?</p>
+                <div class="modal-actions">
+                    <button class="modal-btn secondary" id="cancelDeleteModal">ยกเลิก</button>
+                    <button class="modal-btn danger" id="confirmDeleteModal">ลบเลย</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Icon Picker Modal -->
+        <div class="modal" id="iconPickerModal" role="dialog" aria-modal="true" aria-labelledby="iconPickerTitle"
+            aria-hidden="true">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content icon-picker-content">
+                <div class="modal-header-simple">
+                    <h3 class="modal-title" id="iconPickerTitle">เลือกสติ๊กเกอร์ 🐷✨</h3>
+                    <button class="close-modal-btn" id="closeIconPicker">&times;</button>
+                </div>
+                <div class="icon-grid" id="iconGrid">
+                    <!-- Icons will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div class="toast" id="toast">
+            <span class="toast-emoji" id="toastEmoji" aria-hidden="true">🐷</span>
+            <span class="toast-message" id="toastMessage"></span>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-pig" aria-hidden="true">🐷</div>
+            <span class="loading-text">กำลังโหลด...</span>
+        </div>
+
+    </div>
+
+    <!-- Floating Decorations (Outside app container for safety) -->
+    <div class="floating-decorations" aria-hidden="true">
+        <div class="float-item float-heart">💕</div>
+        <div class="float-item float-star">⭐</div>
+        <div class="float-item float-sparkle">✨</div>
+        <div class="float-item float-heart2">💖</div>
+        <div class="float-item float-star2">🌟</div>
+    </div>
+
+    <!-- Confetti Container -->
+    <div class="confetti-container" id="confettiContainer" aria-hidden="true"></div>
+
+    <!-- JavaScript Files -->
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/sync.js"></script>
+    <script src="js/app.js"></script>
+
+    <!-- Register Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('SW registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>
