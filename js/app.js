@@ -322,6 +322,37 @@ const App = {
             });
         }
 
+        // ⭐ Force Pull from Cloud (Clear Local + Pull)
+        const forcePullBtn = document.getElementById('forcePullCloudBtn');
+        if (forcePullBtn) {
+            forcePullBtn.addEventListener('click', async () => {
+                if (!confirm('⚠️ ข้อมูลในเครื่องจะถูกลบทั้งหมด และดึงข้อมูลใหม่จาก Google Sheet มาแทน\n\nต้องการดำเนินการต่อหรือไม่?')) {
+                    return;
+                }
+
+                if (typeof Sync !== 'undefined' && Sync.canSync()) {
+                    Utils.showLoading(true, 'กำลังดึงข้อมูลจาก Cloud...');
+
+                    // Clear local data first
+                    Storage.clearAllData();
+
+                    // Pull fresh from cloud
+                    const success = await Sync.pullFromCloud();
+
+                    Utils.showLoading(false);
+
+                    if (success) {
+                        Utils.showToast('ดึงข้อมูลจาก Cloud สำเร็จ!', 'success');
+                        this.refresh();
+                    } else {
+                        Utils.showToast('ดึงข้อมูลไม่สำเร็จ กรุณาลองใหม่', 'error');
+                    }
+                } else {
+                    Utils.showToast('ไม่สามารถเชื่อมต่อ Cloud ได้ (ตรวจสอบ URL)', 'error');
+                }
+            });
+        }
+
         // Clear Data Buttons
         const clearCacheBtn = document.getElementById('clearCacheBtn');
         if (clearCacheBtn) {
